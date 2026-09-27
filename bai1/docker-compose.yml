@@ -1,0 +1,74 @@
+services:
+
+  nginx:
+    image: nginx:alpine
+    container_name: ltw-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./website1:/var/www/website1:ro
+      - ./website2:/var/www/website2:ro
+    networks:
+      - ltw-network
+
+  nodered:
+    image: nodered/node-red:latest
+    container_name: ltw-nodered
+    restart: unless-stopped
+    ports:
+      - "1880:1880"
+    volumes:
+      - nodered_data:/data
+    networks:
+      - ltw-network
+
+  mariadb:
+    image: mariadb:latest
+    container_name: ltw-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_DATABASE: ltw_database
+      MARIADB_USER: ltw_user
+      MARIADB_PASSWORD: ltw_password
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - ltw-network
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: ltw-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mariadb
+      PMA_PORT: 3306
+    depends_on:
+      - mariadb
+    networks:
+      - ltw-network
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: ltw-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    depends_on:
+      - nginx
+    networks:
+      - ltw-network
+
+volumes:
+  nodered_data:
+  mariadb_data:
+
+networks:
+  ltw-network:
+    driver: bridge
